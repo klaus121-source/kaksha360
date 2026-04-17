@@ -2,74 +2,104 @@ import express from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
-import connectDB from './config/db.js';
-import userRoutes from './routes/userRoute.js';
-import liveLectureRoutes from './routes/liveLectureRoute.js';
-import videoLectureRoutes from './routes/videoLectureRoute.js';
-import liveTestRoutes from './routes/liveTestRoute.js';
-import materialRoutes from './routes/materialRoutes.js';
-import announcementRoutes from './routes/announcementRoute.js';
-import questionRoutes from './routes/questionRoutes.js';
-import authRoutes from './routes/Auth.routes.js';
 
-dotenv.config()
+import connectDB from '../config/db.js';
 
-// Connect to the database
-connectDB();
+import userRoutes from '../routes/userRoute.js';
+import liveLectureRoutes from '../routes/liveLectureRoute.js';
+import videoLectureRoutes from '../routes/videoLectureRoute.js';
+import liveTestRoutes from '../routes/liveTestRoute.js';
+import materialRoutes from '../routes/materialRoutes.js';
+import announcementRoutes from '../routes/announcementRoute.js';
+import questionRoutes from '../routes/questionRoutes.js';
+import authRoutes from '../routes/Auth.routes.js';
 
-// Load environment variables
 dotenv.config();
 
-
-// Initialize express app
 const app = express();
 
-// Middlewares
-app.use(cors());
+// ✅ Connect DB (safe for serverless)
+let isConnected = false;
+const connectDatabase = async () => {
+  if (!isConnected) {
+    await connectDB();
+    isConnected = true;
+  }
+};
+
+// Middleware
+app.use(cors({
+  origin: [
+    'https://kaksha360.com',
+    'http://localhost:5173',
+    'http://localhost:3000'
+  ],
+  credentials: true
+}));
+
 app.use(express.json());
 app.use(morgan('dev'));
 
-console.log('EMAIL_USER:', process.env.EMAIL_USER)
-console.log('EMAIL_PASS:', process.env.EMAIL_PASS ? 'Loaded' : 'Not loaded')
-
-// Add a root route
-app.get('/', (req, res) => {
-    res.send('Welcome to the Email Verification API!');
+// Root route
+app.get('/', async (req, res) => {
+  await connectDatabase();
+  res.status(200).json({ message: "API running successfully 🚀" });
 });
 
-// Use routes
-app.use('/api/users', userRoutes);
-app.use('/api/live-lectures', liveLectureRoutes);
-app.use('/api/recorded-lectures', videoLectureRoutes);
-app.use('/api/live-tests', liveTestRoutes);
-app.use('/api/study-materials', materialRoutes);
-app.use('/api/announcements', announcementRoutes);
-app.use('/api/questions', questionRoutes);
-app.use('/auth', authRoutes); 
-app.use('/api/auth', authRoutes); 
+// Routes
+app.use('/api/users', async (req, res, next) => {
+  await connectDatabase();
+  next();
+}, userRoutes);
 
+app.use('/api/live-lectures', async (req, res, next) => {
+  await connectDatabase();
+  next();
+}, liveLectureRoutes);
+
+app.use('/api/recorded-lectures', async (req, res, next) => {
+  await connectDatabase();
+  next();
+}, videoLectureRoutes);
+
+app.use('/api/live-tests', async (req, res, next) => {
+  await connectDatabase();
+  next();
+}, liveTestRoutes);
+
+app.use('/api/study-materials', async (req, res, next) => {
+  await connectDatabase();
+  next();
+}, materialRoutes);
+
+app.use('/api/announcements', async (req, res, next) => {
+  await connectDatabase();
+  next();
+}, announcementRoutes);
+
+app.use('/api/questions', async (req, res, next) => {
+  await connectDatabase();
+  next();
+}, questionRoutes);
+
+app.use('/auth', async (req, res, next) => {
+  await connectDatabase();
+  next();
+}, authRoutes);
+
+app.use('/api/auth', async (req, res, next) => {
+  await connectDatabase();
+  next();
+}, authRoutes);
 
 // Error handler
 app.use((err, req, res, next) => {
-  if (err.name === 'MulterError') {
-    return res.status(400).json({
-      success: false,
-      message: 'File upload error',
-      error: err.message
-    });
-  }
-  // ... other error handling
-  res.status(500).json({ success: false, message: err.message });
+  console.error(err);
+  res.status(500).json({
+    success: false,
+    message: err.message || 'Server Error'
+  });
 });
 
-// Root route
-app.get('/', (req, res) => {
-  res.status(200).json({ message: "Node server running on successfully!" });
-});
-
-// Start server
-const PORT = process.env.PORT || 3000;
-
-app.listen(PORT,()=>{
-    console.log(`App is running on Port ${PORT}`)
-})
+// ✅ IMPORTANT: export app (NO app.listen)
+export default app;
